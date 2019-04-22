@@ -1,6 +1,6 @@
 DOCKERFILE_SERVER := Dockerfile
 SOURCE_COMMIT := $$(git show | grep commit | tr -s ' ' | cut -d ' ' -f 2 | cut -c 1-8)
-DOCKER_REPO := icgc-argo/spring-boot-admin
+DOCKER_REPO := icgcargo/spring-boot-admin
 DOCKER_CONTAINER_NAME := admin-server-$(SOURCE_COMMIT)
 DOCKER_IMAGE_NAME := $(DOCKER_REPO):$(SOURCE_COMMIT)
 API_HOST_PORT:= 8080
