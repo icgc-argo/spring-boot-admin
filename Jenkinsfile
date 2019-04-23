@@ -56,6 +56,8 @@ spec:
                     sh "docker build --network=host . -t icgcargo/spring-boot-admin:${commit}"
 
                     sh "docker push icgcargo/spring-boot-admin:${commit}"
+                    sh "docker tag icgcargo/spring-boot-admin:${commit} icgcargo/spring-boot-admin:edge"
+                    sh "docker push icgcargo/spring-boot-admin:edge"
                 }
             }
         }
