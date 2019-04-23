@@ -1,6 +1,7 @@
 # Spring Boot Admin
 1. What is spring boot admin?
 
+
 Spring boot admin manages and monitors spring boot applications. The project is built using [codecentric's spring-boot-admin-starter-server](https://github.com/codecentric/spring-boot-admin).
 
 2. Resigtering Client Applications
