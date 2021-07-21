@@ -20,6 +20,8 @@ spec:
     env:
     - name: DOCKER_HOST
       value: tcp://localhost:2375
+    - name: HOME
+      value: /home/jenkins/agent
   - name: java
     image: openjdk:11-jdk-slim
     command:
