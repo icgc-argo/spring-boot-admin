@@ -1,4 +1,6 @@
 def commit = "UNKNOWN"
+def gitHubRegistry = "ghcr.io"
+def gitHubRepo = "icgc-argo/spring-boot-admin"
 
 pipeline {
     agent {
@@ -58,17 +60,17 @@ spec:
         stage('Build') {
             steps {
                 container('docker') {
-                    withCredentials([usernamePassword(credentialsId:'8d0aaceb-2a19-4f92-ae37-5b61e4c0feb8', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                        sh 'docker login -u $USERNAME -p $PASSWORD'
+                    withCredentials([usernamePassword(credentialsId:'OvertureBioGithub', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                        sh "docker login ${gitHubRegistry} -u $USERNAME -p $PASSWORD"
                     }
                     script {
                         commit = sh(returnStdout: true, script: 'git describe --always').trim()
                     }
 
                     // DNS error if --network is default
-                    sh "docker build --network=host . -t icgcargo/spring-boot-admin:${commit}"
+                    sh "docker build --network=host . -t ${gitHubRegistry}/${gitHubRepo}:${commit}"
 
-                    sh "docker push icgcargo/spring-boot-admin:${commit}"
+                    sh "docker push ${gitHubRegistry}/${gitHubRepo}:${commit}"
                 }
             }
         }
