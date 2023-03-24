@@ -60,7 +60,7 @@ spec:
         stage('Build') {
             steps {
                 container('docker') {
-                    withCredentials([usernamePassword(credentialsId:'OvertureBioGithub', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    withCredentials([usernamePassword(credentialsId:'argoContainers', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                         sh "docker login ${gitHubRegistry} -u $USERNAME -p $PASSWORD"
                     }
                     script {
