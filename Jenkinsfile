@@ -1,7 +1,3 @@
-def commit = "UNKNOWN"
-def gitHubRegistry = "ghcr.io"
-def gitHubRepo = "icgc-argo/spring-boot-admin"
-
 pipeline {
     agent {
         kubernetes {
@@ -48,8 +44,35 @@ spec:
 """
         }
     }
+
+
+    environment {
+        gitHubRegistry = 'ghcr.io'
+        gitHubRepo = 'icgc-argo/spring-boot-admin'
+        gitHubImageName = "${gitHubRegistry}/${gitHubRepo}"
+        PUBLISH_IMAGE = false
+
+        commit = sh(
+            returnStdout: true,
+            script: 'git describe --always'
+        ).trim()
+    }
+
+    parameters {
+        booleanParam(
+            name: 'PUBLISH_IMAGE',
+            defaultValue: "${env.PUBLISH_IMAGE}",
+            description: 'Publishes an image with {git commit} tag'
+        )
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+    }
+
     stages {
-        stage('Test') {
+        stage('Run tests') {
             // TODO: integration test
             steps {
                 container('java') {
@@ -57,23 +80,39 @@ spec:
                 }
             }
         }
-        stage('Build') {
+
+        stage('Builds image') {
             steps {
                 container('docker') {
-                    withCredentials([usernamePassword(credentialsId:'argoContainers', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                        sh "docker login ${gitHubRegistry} -u $USERNAME -p $PASSWORD"
-                    }
-                    script {
-                        commit = sh(returnStdout: true, script: 'git describe --always').trim()
-                    }
-
-                    // DNS error if --network is default
-                    sh "docker build --network=host . -t ${gitHubRegistry}/${gitHubRepo}:${commit}"
-
-                    sh "docker push ${gitHubRegistry}/${gitHubRepo}:${commit}"
+                    sh "docker build --network=host -f Dockerfile . -t ${gitHubImageName}:${commit}"
                 }
             }
         }
+
+        stage('Publish images') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch 'main'
+                    expression { return params.PUBLISH_IMAGE }
+                }
+            }
+            steps {
+                container('docker') {
+                    withCredentials([usernamePassword(
+                        credentialsId:'argoContainers',
+                        passwordVariable: 'PASSWORD',
+                        usernameVariable: 'USERNAME'
+                    )]) {
+                        sh "docker login ${gitHubRegistry} -u $USERNAME -p $PASSWORD"
+                        sh "docker tag ${gitHubImageName}:${commit} ${gitHubImageName}:${commit}"
+                        sh "docker push ${gitHubImageName}:${commit}"
+                    }
+                }
+            }
+        }
+
+
         // stage('Deploy') {
         //     steps {
         //         container('helm') {
@@ -89,6 +128,29 @@ spec:
         // }
     }
     post {
+        unsuccessful {
+            // i used node   container since it has curl already
+            container('node') {
+                script {
+                    if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'develop') {
+                        withCredentials([string(credentialsId: 'JenkinsFailuresSlackChannelURL', variable: 'JenkinsFailuresSlackChannelURL')]) {
+                            sh "curl -X POST -H 'Content-type: application/json' --data '{\"text\":\"Build Failed: ${env.JOB_NAME} [${env.BUILD_NUMBER}] (${env.BUILD_URL}) \"}' ${JenkinsFailuresSlackChannelURL}"
+                        }
+                    }
+                }
+            }
+        }
+        fixed {
+            container('node') {
+                script {
+                    if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'develop') {
+                        withCredentials([string(credentialsId: 'JenkinsFailuresSlackChannelURL', variable: 'JenkinsSucessesSlackChannelURL')]) {
+                            sh "curl -X POST -H 'Content-type: application/json' --data '{\"text\":\"Build Fixed: ${env.JOB_NAME} [${env.BUILD_NUMBER}] (${env.BUILD_URL}) \"}' ${JenkinsSuccessesSlackChannelURL}"
+                        }
+                    }
+                }
+            }
+        }
         always {
             junit "**/TEST-*.xml"
         }
